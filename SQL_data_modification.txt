@@ -1,0 +1,73 @@
+Movie ( mID, title, year, director )
+English: There is a movie with ID number mID, a title, a release year, and a director.
+
+Reviewer ( rID, name )
+English: The reviewer with ID number rID has a certain name.
+
+Rating ( rID, mID, stars, ratingDate )
+English: The reviewer rID gave the movie mID a number of stars rating (1-5) on a certain ratingDate.
+
+
+Q: Add the reviewer Roger Ebert to your database, with an rID of 209. 
+
+insert into Reviewer values (209,'Roger Ebert');
+
+
+Q: Insert 5-star ratings by James Cameron for all movies in the database. Leave the review date as NULL. 
+
+insert into Rating
+select rID, mID, 5, null
+from Reviewer, Movie
+where name='James Cameron';
+
+
+Q: For all movies that have an average rating of 4 stars or higher, add 25 to the release year. (Update the existing tuples; don't insert new tuples.) 
+
+update Movie
+set year = year + 25
+where mID in (select mID from Rating group by mID having avg(stars)>=4);
+
+
+Q: Remove all ratings where the movie's year is before 1970 or after 2000, and the rating is fewer than 4 stars. 
+
+delete from Rating
+where mID in (select mID from Movie where year>2000 or year<1970) and stars<4;
+
+
+w
+
+Highschooler ( ID, name, grade )
+English: There is a high school student with unique ID and a given first name in a certain grade.
+
+Friend ( ID1, ID2 )
+English: The student with ID1 is friends with the student with ID2. Friendship is mutual, so if (123, 456) is in the Friend table, so is (456, 123).
+
+Likes ( ID1, ID2 )
+English: The student with ID1 likes the student with ID2. Liking someone is not necessarily mutual, so if (123, 456) is in the Likes table, there is no guarantee that (456, 123) is also present.
+
+
+Q: It's time for the seniors to graduate. Remove all 12th graders from Highschooler. 
+
+delete from Highschooler
+where grade=12;
+
+
+Q: If two students A and B are friends, and A likes B but not vice-versa, remove the Likes tuple. 
+
+delete from Likes 
+where ID1 in (select Likes.ID1 from Friend join Likes using (ID1) where Friend.ID2=Likes.ID2)
+    and ID2 not in (select Likes.ID1 from Friend join Likes using (ID1) where Friend.ID2=Likes.ID2);
+
+
+Q: For all cases where A is friends with B, and B is friends with C, add a new friendship for the pair A and C. Do not add duplicate friendships, friendships that already exist, or friendships with oneself. (This one is a bit challenging; congratulations if you get it right.) 
+
+insert into Friend
+select AB.ID1, C.ID2
+from friend AB join friend C on AB.ID2 = C.ID1
+where AB.ID1 <> C.ID2
+except
+select * from Friend;
+
+
+
+

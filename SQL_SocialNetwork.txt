@@ -1,0 +1,121 @@
+Highschooler ( ID, name, grade )
+English: There is a high school student with unique ID and a given first name in a certain grade.
+
+Friend ( ID1, ID2 )
+English: The student with ID1 is friends with the student with ID2. Friendship is mutual, so if (123, 456) is in the Friend table, so is (456, 123).
+
+Likes ( ID1, ID2 )
+English: The student with ID1 likes the student with ID2. Liking someone is not necessarily mutual, so if (123, 456) is in the Likes table, there is no guarantee that (456, 123) is also present.
+
+
+Q: Find the names of all students who are friends with someone named Gabriel. 
+
+select name 
+from Highschooler join (select f.ID2 as ID
+from Friend f 
+where f.ID1 in (select ID from Highschooler where name='Gabriel')) using (ID);
+
+
+Q: For every student who likes someone 2 or more grades younger than themselves, return that student's name and grade, and the name and grade of the student they like. 
+
+select H1.name, H1.grade, H2.name, H2.grade
+from (Highschooler as H1 join Likes on Likes.ID1=H1.ID) join Highschooler as H2 on Likes.ID2=H2.ID
+where 2 <= H1.grade - H2.grade;
+
+
+Q: For every pair of students who both like each other, return the name and grade of both students. Include each pair only once, with the two names in alphabetical order. 
+
+select h1.name,h1.grade,h2.name,h2.grade
+from (Highschooler as h1 join (select ID1,ID2 from Likes join 
+    (select ID2 as ID1, ID1 as ID2 from Likes) using (ID1,ID2)) as  Aon A.ID1 = h1.ID) join Highschooler as h2 on  h2.ID=A.ID2
+where h1.name<h2.name;
+
+Q: Find all students who do not appear in the Likes table (as a student who likes or is liked) and return their names and grades. Sort by grade, then by name within each grade. 
+
+select name,grade
+from Highschooler as h  
+where h.id not in (select ID1 from Likes union select ID2 from Likes);
+
+
+Q: For every situation where student A likes student B, but we have no information about whom B likes (that is, B does not appear as an ID1 in the Likes table), return A and B's names and grades. 
+
+select h1.name, h1.grade, h2.name, h2.grade
+from (Highschooler as h1 join 
+(select ID1,ID2 from Likes where ID2 not in (select ID1 from Likes)) as L1 on h1.ID =L1.ID1) join Highschooler as h2 on h2.ID =L1.ID2;
+
+
+Q: Find names and grades of students who only have friends in the same grade. Return the result sorted by grade, then by name within each grade. 
+
+select name, grade
+from Highschooler h1
+where not exists (select * from Highschooler h2 join friend on friend.id2=h2.id 
+                  where friend.id1=h1.id and h2.grade <> h1.grade)
+order by grade, name;
+
+
+Q: For each student A who likes a student B where the two are not friends, find if they have a friend C in common (who can introduce them!). For all such trios, return the name and grade of A, B, and C. 
+
+select (select name from Highschooler where ID = AB.ID1),
+        (select grade from Highschooler where ID = AB.ID1),
+        (select name from Highschooler where ID = AB.ID2),
+        (select grade from Highschooler where ID = AB.ID2),
+        (select name from Highschooler where ID = C.ID2),
+        (select grade from Highschooler where ID = C.ID2)
+from (select * from Likes  
+except select * from Friend) AB join Friend C on AB.ID1=C.ID1
+where exists (select * from Friend where AB.ID2=ID1 and C.ID2=ID2);
+
+
+Q: Find the difference between the number of students in the school and the number of different first names. 
+
+select (select count(*) from Highschooler) - 
+(select count(distinct name) from Highschooler);
+
+
+Q: Find the name and grade of all students who are liked by more than one other student. 
+
+select name,grade 
+from Highschooler
+where ID in (select ID2 from Likes group by ID2 having count(*)>1);
+
+
+Q: For every situation where student A likes student B, but student B likes a different student C, return the names and grades of A, B, and C. 
+
+select (select name from Highschooler where ID=AB.ID1),
+        (select grade from Highschooler where ID=AB.ID1),
+        (select name from Highschooler where ID=AB.ID2),
+        (select grade from Highschooler where ID=AB.ID2),
+        (select name from Highschooler where ID=C.ID2),
+        (select grade from Highschooler where ID=C.ID2)
+from Likes AB join Likes C 
+where AB.ID2=C.ID1 and AB.ID1 <>C.ID2;
+
+
+Q: Find those students for whom all of their friends are in different grades from themselves. Return the students' names and grades. 
+
+
+select name, grade 
+from Highschooler h1
+where grade not in (select grade from (Highschooler h2 join Friend f on h2.ID=f.ID1) temp where h1.ID= temp.ID2);
+
+
+Q: What is the average number of friends per student? (Your result should be just one number.) 
+
+select avg(num)
+from (select count(ID2) num
+from Friend
+group by ID1);
+
+
+Q: Find the number of students who are either friends with Cassandra or are friends of friends of Cassandra. Do not count Cassandra, even though technically she is a friend of a friend. 
+
+select count(*)
+from (select * from Friend where ID1 = (select ID from Highschooler where name='Cassandra')) temp1 join 
+    (select * from Friend) temp2 on temp2.ID1=temp1.ID2;
+
+
+Q: Find the name and grade of the student(s) with the greatest number of friends. 
+
+select name, grade
+from (select ID1 as ID, count(*) as num from Friend group by ID1) join Highschooler using (ID)
+where num = (select max(num) from (select ID1 as ID, count(*) as num from Friend group by ID1));
